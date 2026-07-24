@@ -32,7 +32,10 @@ pub(crate) fn encrypt_ssas_message(ntlm: &mut Ntlm, plaintext: &[u8]) -> anyhow:
     Ok(block)
 }
 
-pub(crate) fn decrypt_ssas_message(ntlm: &mut Ntlm, encrypted_message: &[u8]) -> anyhow::Result<Vec<u8>> {
+pub(crate) fn decrypt_ssas_message(
+    ntlm: &mut Ntlm,
+    encrypted_message: &[u8],
+) -> anyhow::Result<Vec<u8>> {
     let mut remaining = encrypted_message;
     let mut plaintext = Vec::new();
 

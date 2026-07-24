@@ -5,7 +5,7 @@
 
 #![forbid(unsafe_code)]
 
-mod dime;
 mod auth;
-pub mod xmla;
 pub mod connection;
+mod dime;
+pub mod xmla;

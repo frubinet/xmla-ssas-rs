@@ -9,8 +9,5 @@ mod soap;
 pub(crate) use self::auth::Authenticate;
 
 pub use self::discover::XmlaDiscover;
-pub use self::soap::{
-    ToSoap,
-    XmlaOperationContent,
-};
 pub use self::props::XmlaProperties;
+pub use self::soap::{ToSoap, XmlaOperationContent};
