@@ -33,6 +33,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Development
+
+After installing [pre-commit](https://pre-commit.com/), enable the formatting hook:
+
+```sh
+pre-commit install
+```
+
 ## License
 
 Licensed under the [Mozilla Public License 2.0](LICENSE).
