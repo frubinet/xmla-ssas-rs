@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! TCP connection management and authentication for Analysis Services.
-mod connection;
 mod error;
+mod tcp;
 
-pub use connection::{NtlmCredentials, SsasTcpConnection, SsasTcpConnectionOptions};
 pub use error::{Result, XmlaError};
+pub use tcp::{NtlmCredentials, SsasTcpConnection, SsasTcpConnectionOptions};
