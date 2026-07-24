@@ -2,14 +2,16 @@
 
 mod common;
 
-use std::env;
 use common::pretty_xml;
+use std::env;
 use xmla_ssas_rs::connection::{NtlmCredentials, SsasTcpConnection, SsasTcpConnectionOptions};
 
 #[test]
 #[ignore = "requires a running SSAS server"]
 fn connection_auth_and_discover_catalogs() -> Result<(), Box<dyn std::error::Error>> {
     // Authenticates and discovers catalogs
+    common::init_logging();
+
     let tcp_options = SsasTcpConnectionOptions::new(
         env::var("SSAS_HOST")?,
         env::var("SSAS_PORT")?.parse::<u16>()?,

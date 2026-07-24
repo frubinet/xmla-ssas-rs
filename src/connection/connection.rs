@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::auth::{decrypt_ssas_message, encrypt_ssas_message, ntlm_step};
-use crate::connection::error::{XmlaError, Result};
+use crate::connection::error::{Result, XmlaError};
 use crate::dime::{DimeMessage, DimeOptions};
 use crate::xmla::{Authenticate, ToSoap, XmlaDiscover, XmlaOperationContent};
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use log::{debug, info};
 use sspi::{AuthIdentity, CredentialUse, Ntlm, Sspi, Username};
 use std::io;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -101,7 +102,7 @@ impl SsasTcpConnection {
     }
 
     fn tcp_connect(options: &SsasTcpConnectionOptions) -> Result<TcpStream> {
-        println!("Connecting to {}:{}...", options.host, options.port);
+        info!("Connecting to {}:{}...", options.host, options.port);
 
         let addresses = (options.host.as_str(), options.port).to_socket_addrs()?;
 
@@ -110,7 +111,7 @@ impl SsasTcpConnection {
         for address in addresses {
             match TcpStream::connect_timeout(&address, options.connect_timeout) {
                 Ok(stream) => {
-                    println!("Connected");
+                    info!("Connected");
                     stream.set_read_timeout(Some(options.read_timeout))?;
 
                     return Ok(stream);
@@ -208,12 +209,12 @@ impl SsasTcpConnection {
         request.write_to(stream)?;
         let response = DimeMessage::read_from(stream)?;
         if let Some(options) = response.options {
-            println!(
-                "Options: compressed: {}, binary_xml:{}",
+            debug!(
+                "SSAS options: compressed: {}, binary_xml:{}",
                 options.is_response_compressed, options.is_response_xml_binary
             );
         } else {
-            println!("No Options");
+            debug!("SSAS response contains no DIME options");
         }
 
         let xml = std::str::from_utf8(&response.data)?;
