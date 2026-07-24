@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use crate::dime::DimeError;
 use std::{io, str::Utf8Error};
 use thiserror::Error;

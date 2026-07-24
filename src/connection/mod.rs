@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 //! TCP connection management and authentication for Analysis Services.
 mod connection;
 mod error;

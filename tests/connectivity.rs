@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use std::env;
 use xmla_ssas_rs::connection::{SsasTcpConnection, SsasTcpConnectionOptions};
 

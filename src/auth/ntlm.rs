@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use sspi::{
     AcquireCredentialsHandleResult, AuthIdentityBuffers, BufferType, ClientRequestFlags,
     DataRepresentation, Ntlm, SecurityBuffer, SecurityStatus, Sspi, SspiImpl,

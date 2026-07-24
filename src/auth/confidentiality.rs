@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use anyhow::bail;
 use sspi::{EncryptionFlags, Ntlm, SecurityBufferRef, Sspi};
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 //! Native Rust client for Microsoft SQL Server Analysis Services
 //! using XMLA over TCP/DIME.
 

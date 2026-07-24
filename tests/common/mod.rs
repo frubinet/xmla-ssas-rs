@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use quick_xml::events::Event;
 use quick_xml::{Reader, Writer};
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use crate::auth::{decrypt_ssas_message, encrypt_ssas_message, ntlm_step};
 use crate::connection::error::{XmlaError, Result};
 use crate::dime::{DimeMessage, DimeOptions};

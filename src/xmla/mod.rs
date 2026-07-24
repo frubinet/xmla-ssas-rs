@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 //! XMLA request models and SOAP serialization.
 mod auth;
 mod discover;

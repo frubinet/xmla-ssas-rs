@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 #[derive(Debug, thiserror::Error)]
 pub enum DimeError {
     #[error("I/O error: {0}")]

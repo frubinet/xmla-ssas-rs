@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use crate::xmla::props::XmlaProperties;
 use crate::xmla::soap::ToXml;
 use quick_xml::Writer;
