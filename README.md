@@ -1,7 +1,7 @@
 # xmla-ssas-rs
 
 Native Rust client for Microsoft SQL Server Analysis Services using XMLA over
-TCP/DIME.
+TCP/DIME. Based on MS-SSAS specification [v20260525](https://sqlprotocoldocs-cgcjdngdb5dee9c6.b02.azurefd.net/MS-SSAS/%5BMS-SSAS%5D-260525.pdf).
 
 > Status: Early development: the API and protocol support are incomplete and may change.
 
