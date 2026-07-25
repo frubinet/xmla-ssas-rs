@@ -2,6 +2,8 @@
 name = "xmla-ssas-rs"
 version = "0.1.0"
 edition = "2024"
+description = "Native Rust client for Microsoft SQL Server Analysis Services using XMLA over TCP/DIME"
+repository = "https://github.com/frubinet/xmla-ssas-rs"
 license = "MPL-2.0"
 
 [dependencies]
