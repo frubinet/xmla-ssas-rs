@@ -30,6 +30,9 @@ pub enum XmlaError {
 
     #[error("protocol error: {0}")]
     ProtocolError(String),
+
+    #[error("parsing error: {0}")]
+    ParsingError(String),
 }
 
 pub type Result<T> = std::result::Result<T, XmlaError>;

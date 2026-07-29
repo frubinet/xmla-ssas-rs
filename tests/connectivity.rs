@@ -15,6 +15,6 @@ fn test_connectivity() -> Result<(), Box<dyn std::error::Error>> {
         env::var("SSAS_HOST")?,
         env::var("SSAS_PORT")?.parse::<u16>()?,
     );
-    SsasTcpConnection::test_connectivity(tcp_options)?;
+    SsasTcpConnection::probe(tcp_options)?;
     Ok(())
 }

@@ -8,7 +8,7 @@ TCP/DIME. Based on MS-SSAS specification [v20260525](https://sqlprotocoldocs-cgc
 ## Current support
 
 - NTLM authentication and message encryption
-- XMLA `Discover` requests, returning the SOAP result, no Discover response parsing yet.
+- XMLA `Discover` requests with restrictions and parsed rowset responses.
 
 ## Usage
 
@@ -16,6 +16,7 @@ TCP/DIME. Based on MS-SSAS specification [v20260525](https://sqlprotocoldocs-cgc
 use xmla_ssas_rs::connection::{
     NtlmCredentials, SsasTcpConnection, SsasTcpConnectionOptions,
 };
+use xmla_ssas_rs::xmla::XmlaRestrictions;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = SsasTcpConnectionOptions::new("ssas.example.com", 2383);
@@ -26,8 +27,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mut connection = SsasTcpConnection::connect(options, credentials)?;
-    let response = connection.discover("DBSCHEMA_CATALOGS".into())?;
-    println!("{response}");
+    let response = connection.discover("DBSCHEMA_CATALOGS".to_string(), &XmlaRestrictions::default())?;
+    let catalog_names: Vec<String> = response
+        .rows()
+        .filter_map(|row| row.get("CATALOG_NAME").cloned())
+        .collect();
+    println!("Catalogs: {:?}", catalog_names);
 
     Ok(())
 }

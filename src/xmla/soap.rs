@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
+use crate::connection::XmlaError;
 use quick_xml::{
     Writer,
     events::{BytesEnd, BytesStart, Event},
 };
+use roxmltree::Node;
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +36,10 @@ impl XmlaOperationContent {
 
 pub(crate) trait ToXml {
     fn to_xml(&self, writer: &mut Writer<Vec<u8>>) -> io::Result<()>;
+}
+
+pub(crate) trait FromXml: Sized {
+    fn from_xml(node: Node) -> Result<Self, XmlaError>;
 }
 
 pub trait ToSoap {

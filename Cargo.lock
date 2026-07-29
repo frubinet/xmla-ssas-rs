@@ -2388,6 +2388,7 @@ dependencies = [
  "env_logger",
  "log",
  "quick-xml",
+ "regex",
  "roxmltree",
  "sspi",
  "thiserror",
