@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
+use crate::xmla::XmlaRestrictions;
 use crate::xmla::props::XmlaProperties;
 use crate::xmla::soap::ToXml;
 use quick_xml::Writer;
@@ -9,6 +10,7 @@ use std::io;
 pub struct XmlaDiscover {
     pub request_type: String,
     pub properties: XmlaProperties,
+    pub restrictions: XmlaRestrictions,
 }
 
 impl XmlaDiscover {
@@ -16,6 +18,7 @@ impl XmlaDiscover {
         Self {
             request_type: request_type.into(),
             properties: XmlaProperties::default(),
+            restrictions: XmlaRestrictions::default(),
         }
     }
 }
@@ -37,10 +40,7 @@ impl ToXml for XmlaDiscover {
         writer.write_event(Event::Start(BytesStart::new("RequestType")))?;
         writer.write_event(Event::Text(BytesText::new(self.request_type.as_str())))?;
         writer.write_event(Event::End(BytesEnd::new("RequestType")))?;
-        writer.write_event(Event::Start(BytesStart::new("Restrictions")))?;
-        writer.write_event(Event::Start(BytesStart::new("RestrictionList")))?;
-        writer.write_event(Event::End(BytesEnd::new("RestrictionList")))?;
-        writer.write_event(Event::End(BytesEnd::new("Restrictions")))?;
+        self.restrictions.to_xml(writer)?;
         self.properties.to_xml(writer)?;
         writer.write_event(Event::End(BytesEnd::new("Discover")))?;
         Ok(())
