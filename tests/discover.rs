@@ -62,7 +62,7 @@ fn connection_auth_and_discover_cubes_dimensions_measures() -> Result<(), Box<dy
     println!("Selected catalog: {:?}", catalog_name);
 
     let mut catalog_restrictions = XmlaRestrictions::default();
-    catalog_restrictions.add("CATALOG_NAME", catalog_name)?;
+    catalog_restrictions.add(XmlaRestrictions::CATALOG_NAME, catalog_name)?;
     let response = connection.discover("MDSCHEMA_CUBES".to_string(), &catalog_restrictions)?;
     let cube_names: Vec<String> = response
         .rows()

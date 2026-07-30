@@ -4,8 +4,8 @@ use crate::auth::{decrypt_ssas_message, encrypt_ssas_message, ntlm_step};
 use crate::connection::error::{Result, XmlaError};
 use crate::dime::{DimeMessage, DimeOptions};
 use crate::xmla::{
-    Authenticate, FromXml, ToSoap, XmlaDiscover, XmlaDiscoverResponse, XmlaOperationContent,
-    XmlaRestrictions,
+    Authenticate, FromXml, ToSoap, XmlaDiscover, XmlaDiscoverResponse, XmlaExecute,
+    XmlaOperationContent, XmlaProperties, XmlaRestrictions,
 };
 use anyhow::Context;
 use base64::Engine;
@@ -88,7 +88,9 @@ impl SsasTcpConnection {
 
         let mut discover = XmlaDiscover::new(request_type);
         discover.restrictions = restrictions.clone();
-        discover.properties.content = Some(XmlaOperationContent::Data);
+        discover
+            .properties
+            .add(XmlaProperties::CONTENT, XmlaOperationContent::Data.as_str())?;
         let soap = discover
             .to_soap()
             .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
@@ -109,6 +111,39 @@ impl SsasTcpConnection {
         let xml = std::str::from_utf8(&decrypted)?;
         let document = Document::parse(xml)?;
         XmlaDiscoverResponse::from_xml(Self::get_body_child(&document)?)
+    }
+
+    pub fn execute(
+        &mut self,
+        query: impl Into<String>,
+        catalog: impl Into<String>,
+    ) -> Result<String> {
+        let stream = &mut self.stream;
+        let ntlm = &mut self.ntlm;
+
+        let mut execute = XmlaExecute::new(query, catalog)?;
+        execute
+            .properties
+            .add(XmlaProperties::CONTENT, XmlaOperationContent::Data.as_str())?;
+        let soap = execute
+            .to_soap()
+            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+        let encrypted_soap = encrypt_ssas_message(ntlm, &soap)
+            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+        let request = DimeMessage {
+            options: Some(DimeOptions {
+                is_negotiated: true,
+                ..DimeOptions::default()
+            }),
+            content_type: Some(String::from("text/xml")),
+            data: encrypted_soap,
+        };
+        request.write_to(stream)?;
+        let response = DimeMessage::read_from(stream)?;
+        let decrypted = decrypt_ssas_message(ntlm, &response.data)
+            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+        let xml = std::str::from_utf8(&decrypted)?;
+        Ok(xml.to_string())
     }
 
     fn tcp_connect(options: &SsasTcpConnectionOptions) -> Result<TcpStream> {
