@@ -2,6 +2,7 @@
 
 //! XMLA request models and SOAP serialization.
 mod auth;
+mod dataset;
 mod discover;
 mod execute;
 mod props;
@@ -13,9 +14,10 @@ mod values_map;
 pub(crate) use self::auth::Authenticate;
 pub(crate) use soap::FromXml;
 
+pub use self::dataset::{XmlaDataset, parse_execute_response};
 pub use self::discover::XmlaDiscover;
 pub use self::execute::XmlaExecute;
 pub use self::props::XmlaProperties;
-pub use self::responses::XmlaDiscoverResponse;
+pub use self::responses::{XmlaDiscoverResponse, parse_discover_response};
 pub use self::restrictions::XmlaRestrictions;
 pub use self::soap::{ToSoap, XmlaOperationContent};

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::connection::XmlaError;
-use crate::xmla::soap::FromXml;
-use roxmltree::Node;
+use crate::xmla::soap::{FromXml, get_body_child};
+use roxmltree::{Document, Node};
 use std::collections::HashMap;
 
-const XMLA_NS: &str = "urn:schemas-microsoft-com:xml-analysis";
+pub(crate) const XMLA_NS: &str = "urn:schemas-microsoft-com:xml-analysis";
 const XMLA_ROWSET_NS: &str = "urn:schemas-microsoft-com:xml-analysis:rowset";
 
 #[derive(Debug, Default)]
@@ -13,7 +13,7 @@ pub struct XmlaDiscoverResponse {
     rows: Vec<HashMap<String, String>>,
 }
 
-fn check_tag_name(node: Node, ns: &str, tag_name: &str) -> Result<(), XmlaError> {
+pub(crate) fn check_tag_name(node: Node, ns: &str, tag_name: &str) -> Result<(), XmlaError> {
     if !node.has_tag_name((ns, tag_name)) {
         Err(XmlaError::ParsingError(format!(
             "Expected {{{}}}{} node, found: {{{}}}/{}",
@@ -27,7 +27,7 @@ fn check_tag_name(node: Node, ns: &str, tag_name: &str) -> Result<(), XmlaError>
     }
 }
 
-fn get_first_element_child<'a>(
+pub(crate) fn get_first_element_child<'a>(
     parent: Node<'a, 'a>,
     ns: &str,
     tag_name: &str,
@@ -70,6 +70,11 @@ impl FromXml for XmlaDiscoverResponse {
         }
         Ok(response)
     }
+}
+
+pub fn parse_discover_response(xml: &str) -> Result<XmlaDiscoverResponse, XmlaError> {
+    let document = Document::parse(xml)?;
+    XmlaDiscoverResponse::from_xml(get_body_child(&document)?)
 }
 
 #[cfg(test)]

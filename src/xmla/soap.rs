@@ -8,6 +8,8 @@ use quick_xml::{
 use roxmltree::Node;
 use std::io;
 
+const SOAP_NS: &str = "http://schemas.xmlsoap.org/soap/envelope/";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum XmlaOperationContent {
     /// Validates the structure without executing.
@@ -61,4 +63,35 @@ impl<T: ToXml> ToSoap for T {
 
         Ok(writer.into_inner())
     }
+}
+
+fn parse_fault(node: &Node) -> XmlaError {
+    let fault_code = node
+        .children()
+        .find(|node| node.is_element() && node.tag_name().name() == "faultcode")
+        .and_then(|node| node.text())
+        .unwrap_or("Unknown");
+    let fault_string = node
+        .children()
+        .find(|node| node.is_element() && node.tag_name().name() == "faultstring")
+        .and_then(|node| node.text())
+        .unwrap_or("Unknown");
+    XmlaError::ProtocolError(format!("{fault_code}: {fault_string}"))
+}
+
+pub(crate) fn get_body_child<'a, 'input: 'a>(
+    document: &'a roxmltree::Document<'input>,
+) -> crate::connection::Result<Node<'a, 'input>> {
+    let body = document
+        .descendants()
+        .find(|node| node.is_element() && node.has_tag_name((SOAP_NS, "Body")))
+        .ok_or_else(|| XmlaError::ProtocolError("No body found".to_string()))?;
+    let child = body
+        .children()
+        .find(|node| node.is_element())
+        .ok_or_else(|| XmlaError::ProtocolError("Empty body".to_string()))?;
+    if child.has_tag_name((SOAP_NS, "Fault")) {
+        return Err(parse_fault(&child));
+    }
+    Ok(child)
 }
