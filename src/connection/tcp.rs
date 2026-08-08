@@ -4,14 +4,14 @@ use crate::auth::{decrypt_ssas_message, encrypt_ssas_message, ntlm_step};
 use crate::connection::error::{Result, XmlaError};
 use crate::dime::{DimeMessage, DimeOptions};
 use crate::xmla::{
-    Authenticate, FromXml, ToSoap, XmlaDiscover, XmlaDiscoverResponse, XmlaOperationContent,
-    XmlaRestrictions,
+    Authenticate, ToSoap, XmlaDataset, XmlaDiscover, XmlaDiscoverResponse, XmlaExecute,
+    XmlaOperationContent, XmlaProperties, XmlaRestrictions, parse_discover_response,
+    parse_execute_response,
 };
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use log::{debug, info};
-use roxmltree::{Document, Node};
 use sspi::{AuthIdentity, CredentialUse, Ntlm, Sspi, Username};
 use std::io;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -88,7 +88,9 @@ impl SsasTcpConnection {
 
         let mut discover = XmlaDiscover::new(request_type);
         discover.restrictions = restrictions.clone();
-        discover.properties.content = Some(XmlaOperationContent::Data);
+        discover
+            .properties
+            .add(XmlaProperties::CONTENT, XmlaOperationContent::Data.as_str())?;
         let soap = discover
             .to_soap()
             .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
@@ -107,8 +109,40 @@ impl SsasTcpConnection {
         let decrypted = decrypt_ssas_message(ntlm, &response.data)
             .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
         let xml = std::str::from_utf8(&decrypted)?;
-        let document = Document::parse(xml)?;
-        XmlaDiscoverResponse::from_xml(Self::get_body_child(&document)?)
+        parse_discover_response(xml)
+    }
+
+    pub fn execute(
+        &mut self,
+        query: impl Into<String>,
+        catalog: impl Into<String>,
+    ) -> Result<XmlaDataset> {
+        let stream = &mut self.stream;
+        let ntlm = &mut self.ntlm;
+
+        let mut execute = XmlaExecute::new(query, catalog)?;
+        execute
+            .properties
+            .add(XmlaProperties::CONTENT, XmlaOperationContent::Data.as_str())?;
+        let soap = execute
+            .to_soap()
+            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+        let encrypted_soap = encrypt_ssas_message(ntlm, &soap)
+            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+        let request = DimeMessage {
+            options: Some(DimeOptions {
+                is_negotiated: true,
+                ..DimeOptions::default()
+            }),
+            content_type: Some(String::from("text/xml")),
+            data: encrypted_soap,
+        };
+        request.write_to(stream)?;
+        let response = DimeMessage::read_from(stream)?;
+        let decrypted = decrypt_ssas_message(ntlm, &response.data)
+            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+        let xml = std::str::from_utf8(&decrypted)?;
+        parse_execute_response(xml)
     }
 
     fn tcp_connect(options: &SsasTcpConnectionOptions) -> Result<TcpStream> {
@@ -283,24 +317,5 @@ impl SsasTcpConnection {
                 "Unexpected response message".into(),
             ))
         }
-    }
-
-    fn get_body_child<'a, 'input: 'a>(
-        document: &'a roxmltree::Document<'input>,
-    ) -> Result<Node<'a, 'input>> {
-        let body = document
-            .descendants()
-            .find(|node| {
-                node.is_element()
-                    && node.tag_name().name() == "Body"
-                    && node.tag_name().namespace()
-                        == Some("http://schemas.xmlsoap.org/soap/envelope/")
-            })
-            .ok_or_else(|| XmlaError::ProtocolError("No body found".to_string()))?;
-        let child = body
-            .children()
-            .find(|node| node.is_element())
-            .ok_or_else(|| XmlaError::ProtocolError("Empty body".to_string()))?;
-        Ok(child)
     }
 }

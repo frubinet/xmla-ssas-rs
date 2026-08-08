@@ -2,50 +2,33 @@
 
 use crate::connection::XmlaError;
 use crate::xmla::soap::ToXml;
+use crate::xmla::values_map::XmlaValueMap;
 use quick_xml::Writer;
-use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-use regex::Regex;
-use std::collections::HashMap;
+use quick_xml::events::{BytesEnd, BytesStart, Event};
 use std::io;
-use std::sync::LazyLock;
-
-static XML_NAME_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^[A-Za-z_][A-Za-z0-9_.-]*$").unwrap());
 
 #[derive(Debug, Default, Clone)]
 pub struct XmlaRestrictions {
-    values: HashMap<String, String>,
-}
-
-fn is_valid_xml_name(name: &str) -> bool {
-    XML_NAME_REGEX.is_match(name)
+    values: XmlaValueMap,
 }
 
 impl XmlaRestrictions {
+    pub const CATALOG_NAME: &'static str = "CATALOG_NAME";
+
     pub fn add(
         &mut self,
         key: impl Into<String>,
         value: impl Into<String>,
     ) -> Result<(), XmlaError> {
-        let key = key.into();
-
-        if !is_valid_xml_name(&key) {
-            return Err(XmlaError::SerializationError(format!(
-                "Invalid XML restriction name: {key:?}"
-            )));
-        }
-        self.values.insert(key, value.into());
-        Ok(())
+        self.values.add(key, value)
     }
 
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.values.get(key).map(|s| s.as_str())
+        self.values.get(key)
     }
 
     pub fn entries(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.values
-            .iter()
-            .map(|(key, value)| (key.as_str(), value.as_str()))
+        self.values.entries()
     }
 }
 
@@ -53,25 +36,9 @@ impl ToXml for XmlaRestrictions {
     fn to_xml(&self, writer: &mut Writer<Vec<u8>>) -> io::Result<()> {
         writer.write_event(Event::Start(BytesStart::new("Restrictions")))?;
         writer.write_event(Event::Start(BytesStart::new("RestrictionList")))?;
-        for (key, value) in self.entries() {
-            writer.write_event(Event::Start(BytesStart::new(key)))?;
-            writer.write_event(Event::Text(BytesText::new(value)))?;
-            writer.write_event(Event::End(BytesEnd::new(key)))?;
-        }
+        self.values.to_xml(writer)?;
         writer.write_event(Event::End(BytesEnd::new("RestrictionList")))?;
         writer.write_event(Event::End(BytesEnd::new("Restrictions")))?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rejects_invalid_restriction_name() {
-        let mut restrictions = XmlaRestrictions::default();
-
-        assert!(restrictions.add("invalid key", "value").is_err());
     }
 }
