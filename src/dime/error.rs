@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
+use crate::dime::format::TypeFormat;
+
 #[derive(Debug, thiserror::Error)]
 pub enum DimeError {
     #[error("I/O error: {0}")]
@@ -28,4 +30,19 @@ pub enum DimeError {
 
     #[error("invalid DIME reserved bits: {0:#06b}")]
     InvalidReservedBits(u8),
+
+    #[error("DIME records out of order: {0}")]
+    OutOfOrder(&'static str),
+
+    #[error("DIME record flags invalid: {0}")]
+    InconsistentRecordFlags(&'static str),
+
+    #[error("unexpected type format: {0}")]
+    UnexpectedTypeFormat(TypeFormat),
+
+    #[error("unexpected content type: {0}")]
+    UnexpectedContentType(String),
+
+    #[error("{0}")]
+    RecordFormatError(String),
 }
