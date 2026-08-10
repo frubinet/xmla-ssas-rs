@@ -101,7 +101,7 @@ impl SsasTcpConnection {
                 is_negotiated: true,
                 ..DimeOptions::default()
             }),
-            content_type: Some(String::from("text/xml")),
+            content_type: String::from("text/xml"),
             data: encrypted_soap,
         };
         request.write_to(stream)?;
@@ -134,7 +134,7 @@ impl SsasTcpConnection {
                 is_negotiated: true,
                 ..DimeOptions::default()
             }),
-            content_type: Some(String::from("text/xml")),
+            content_type: String::from("text/xml"),
             data: encrypted_soap,
         };
         request.write_to(stream)?;
@@ -200,7 +200,7 @@ impl SsasTcpConnection {
             .map_err(|error| XmlaError::SerializationError(error.to_string()))?;
         let request = DimeMessage {
             options: Some(DimeOptions::default()),
-            content_type: Some(String::from("text/xml")),
+            content_type: String::from("text/xml"),
             data: soap,
         };
         request.write_to(stream)?;
@@ -247,7 +247,7 @@ impl SsasTcpConnection {
                 is_negotiated: true,
                 ..DimeOptions::default()
             }),
-            content_type: Some(String::from("text/xml")),
+            content_type: String::from("text/xml"),
             data: soap,
         };
         request.write_to(stream)?;
@@ -292,7 +292,7 @@ impl SsasTcpConnection {
         </soap:Envelope>"#;
         let request = DimeMessage {
             options: Some(DimeOptions::default()),
-            content_type: Some(String::from("text/xml")),
+            content_type: String::from("text/xml"),
             data: soap.to_vec(),
         };
         request.write_to(stream)?;

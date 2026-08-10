@@ -10,7 +10,7 @@ const CHUNK_SIZE: usize = 4096;
 
 pub struct DimeMessage {
     pub options: Option<DimeOptions>,
-    pub content_type: Option<String>,
+    pub content_type: String,
     pub data: Vec<u8>,
 }
 
@@ -19,9 +19,13 @@ impl DimeMessage {
         let mut data = Vec::new();
         let mut options: Option<DimeOptions> = None;
         let mut content_type: Option<String> = None;
-        // TODO: validate record sequence (is_first_record, is_last_record, etc)
+        let mut first = true;
         loop {
             let record = DimeRecord::read_from(reader)?;
+            validate_record(&record, first)?;
+            if first {
+                first = false;
+            }
             if options.is_none() {
                 options = record.options;
             }
@@ -33,6 +37,8 @@ impl DimeMessage {
                 break;
             }
         }
+        let content_type = content_type
+            .ok_or_else(|| DimeError::RecordFormatError("Content type not found".to_string()))?;
         Ok(DimeMessage {
             options,
             content_type,
@@ -41,6 +47,11 @@ impl DimeMessage {
     }
 
     pub fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), DimeError> {
+        if self.content_type.is_empty() {
+            return Err(DimeError::RecordFormatError(
+                "Empty content type".to_string(),
+            ));
+        }
         let chunks = self
             .data
             .chunks(CHUNK_SIZE)
@@ -54,10 +65,8 @@ impl DimeMessage {
                 has_next_chunk: index < (chunk_count - 1),
                 type_format: if index != 0 {
                     TypeFormat::Unchanged
-                } else if self.content_type.is_some() {
-                    TypeFormat::MediaType
                 } else {
-                    TypeFormat::NoType
+                    TypeFormat::MediaType
                 },
                 id: None,
                 options: if index == 0 {
@@ -65,17 +74,50 @@ impl DimeMessage {
                 } else {
                     None
                 },
-                type_value: if index == 0 && self.content_type.is_some() {
-                    self.content_type.clone()
-                } else {
-                    None
-                },
+                type_value: (index == 0).then(|| self.content_type.clone()),
                 data: chunk.to_vec(),
             };
             record.write_to(writer)?;
         }
         Ok(())
     }
+}
+
+fn validate_record(record: &DimeRecord, first: bool) -> Result<(), DimeError> {
+    if first {
+        if !record.is_first_record {
+            return Err(DimeError::OutOfOrder("first record expected"));
+        }
+        if record.type_format != TypeFormat::MediaType {
+            return Err(DimeError::UnexpectedTypeFormat(record.type_format));
+        }
+        if record.type_value.is_none() {
+            return Err(DimeError::RecordFormatError(
+                "Expected content type".to_string(),
+            ));
+        }
+    } else {
+        if record.is_first_record {
+            return Err(DimeError::OutOfOrder("first record not expected"));
+        }
+        if record.type_format != TypeFormat::Unchanged {
+            return Err(DimeError::UnexpectedTypeFormat(record.type_format));
+        }
+        if let Some(record_type_value) = record.type_value.as_ref() {
+            return Err(DimeError::UnexpectedContentType(record_type_value.clone()));
+        }
+        if let Some(record_id) = record.id.as_ref() {
+            return Err(DimeError::RecordFormatError(format!(
+                "Unexpected ID: {record_id}"
+            )));
+        }
+    }
+    if record.is_last_record == record.has_next_chunk {
+        return Err(DimeError::InconsistentRecordFlags(
+            "Inconsistent record flags: ME=CF",
+        ));
+    }
+    Ok(())
 }
 
 //TODO: add tests for different sizes, for example: 0, 4095, 4096, and 4097

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::dime::error::DimeError;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -29,5 +30,19 @@ impl TryFrom<u8> for TypeFormat {
             0x04 => Ok(TypeFormat::NoType),
             _ => Err(DimeError::InvalidTypeFormat(value)),
         }
+    }
+}
+
+impl fmt::Display for TypeFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Self::Unchanged => "Unchanged",
+            Self::MediaType => "MediaType",
+            Self::AbsoluteUri => "AbsoluteUri",
+            Self::Unknown => "Unknown",
+            Self::NoType => "NoType",
+        };
+
+        f.write_str(name)
     }
 }
