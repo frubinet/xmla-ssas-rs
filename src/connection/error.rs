@@ -33,6 +33,9 @@ pub enum XmlaError {
 
     #[error("parsing error: {0}")]
     ParsingError(String),
+
+    #[error("authentication error: {0}")]
+    AuthenticationError(String),
 }
 
 pub type Result<T> = std::result::Result<T, XmlaError>;
