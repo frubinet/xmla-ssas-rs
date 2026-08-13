@@ -10,4 +10,5 @@ mod record;
 
 pub(crate) use error::DimeError;
 pub(crate) use message::DimeMessage;
+pub use message::decompress;
 pub(crate) use options::DimeOptions;

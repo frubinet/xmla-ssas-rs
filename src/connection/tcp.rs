@@ -2,7 +2,7 @@
 
 use crate::auth::{decrypt_ssas_message, encrypt_ssas_message, ntlm_step};
 use crate::connection::error::{Result, XmlaError};
-use crate::dime::{DimeMessage, DimeOptions};
+use crate::dime::{DimeMessage, DimeOptions, decompress};
 use crate::xmla::{
     Authenticate, ToSoap, XmlaDataset, XmlaDiscover, XmlaDiscoverResponse, XmlaExecute,
     XmlaOperationContent, XmlaProperties, XmlaRestrictions, parse_discover_response,
@@ -19,6 +19,7 @@ use std::time::Duration;
 
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(60);
+const DEFAULT_COMPRESSION: bool = true;
 
 const SSAS_NS: &str = "http://schemas.microsoft.com/analysisservices/2003/ext";
 
@@ -28,6 +29,7 @@ pub struct SsasTcpConnectionOptions {
     port: u16,
     connect_timeout: Duration,
     read_timeout: Duration,
+    enable_compression: bool,
 }
 
 pub struct NtlmCredentials {
@@ -39,6 +41,7 @@ pub struct NtlmCredentials {
 pub struct SsasTcpConnection {
     stream: TcpStream,
     ntlm: Ntlm,
+    dime_options: DimeOptions,
 }
 
 impl SsasTcpConnectionOptions {
@@ -48,6 +51,7 @@ impl SsasTcpConnectionOptions {
             port,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             read_timeout: DEFAULT_READ_TIMEOUT,
+            enable_compression: DEFAULT_COMPRESSION,
         }
     }
 
@@ -60,6 +64,11 @@ impl SsasTcpConnectionOptions {
         self.read_timeout = timeout;
         self
     }
+
+    pub fn with_compression(mut self, compression: bool) -> Self {
+        self.enable_compression = compression;
+        self
+    }
 }
 
 impl SsasTcpConnection {
@@ -68,8 +77,17 @@ impl SsasTcpConnection {
         credentials: NtlmCredentials,
     ) -> Result<Self> {
         let mut stream = Self::tcp_connect(&options)?;
-        let ntlm = Self::authenticate(&mut stream, credentials)?;
-        Ok(SsasTcpConnection { stream, ntlm })
+        let dime_options = DimeOptions {
+            is_response_compressed: options.enable_compression,
+            ..DimeOptions::default()
+        };
+        let (ntlm, mut dime_options) = Self::authenticate(&dime_options, &mut stream, credentials)?;
+        dime_options.is_negotiated = true;
+        Ok(SsasTcpConnection {
+            stream,
+            ntlm,
+            dime_options,
+        })
     }
 
     pub fn probe(options: SsasTcpConnectionOptions) -> Result<()> {
@@ -97,18 +115,14 @@ impl SsasTcpConnection {
         let encrypted_soap = encrypt_ssas_message(ntlm, &soap)
             .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
         let request = DimeMessage {
-            options: Some(DimeOptions {
-                is_negotiated: true,
-                ..DimeOptions::default()
-            }),
+            options: Some(self.dime_options.clone()),
             content_type: String::from("text/xml"),
             data: encrypted_soap,
         };
         request.write_to(stream)?;
         let response = DimeMessage::read_from(stream)?;
-        let decrypted = decrypt_ssas_message(ntlm, &response.data)
-            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
-        let xml = std::str::from_utf8(&decrypted)?;
+        let data = decrypt_and_decompress(ntlm, &response)?;
+        let xml = std::str::from_utf8(&data)?;
         parse_discover_response(xml)
     }
 
@@ -130,18 +144,14 @@ impl SsasTcpConnection {
         let encrypted_soap = encrypt_ssas_message(ntlm, &soap)
             .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
         let request = DimeMessage {
-            options: Some(DimeOptions {
-                is_negotiated: true,
-                ..DimeOptions::default()
-            }),
+            options: Some(self.dime_options.clone()),
             content_type: String::from("text/xml"),
             data: encrypted_soap,
         };
         request.write_to(stream)?;
         let response = DimeMessage::read_from(stream)?;
-        let decrypted = decrypt_ssas_message(ntlm, &response.data)
-            .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
-        let xml = std::str::from_utf8(&decrypted)?;
+        let data = decrypt_and_decompress(ntlm, &response)?;
+        let xml = std::str::from_utf8(&data)?;
         parse_execute_response(xml)
     }
 
@@ -174,7 +184,11 @@ impl SsasTcpConnection {
             .into())
     }
 
-    fn authenticate(stream: &mut TcpStream, credentials: NtlmCredentials) -> Result<Ntlm> {
+    fn authenticate(
+        dime_options: &DimeOptions,
+        stream: &mut TcpStream,
+        credentials: NtlmCredentials,
+    ) -> Result<(Ntlm, DimeOptions)> {
         let qualified_username = format!(r"{}\{}", credentials.domain, credentials.username);
 
         let identity = AuthIdentity {
@@ -199,10 +213,11 @@ impl SsasTcpConnection {
             .to_soap()
             .map_err(|error| XmlaError::SerializationError(error.to_string()))?;
         let request = DimeMessage {
-            options: Some(DimeOptions::default()),
+            options: Some(dime_options.clone()),
             content_type: String::from("text/xml"),
             data: soap,
         };
+        debug!("Starting authentication handshake");
         request.write_to(stream)?;
         let response = DimeMessage::read_from(stream)?;
 
@@ -243,24 +258,21 @@ impl SsasTcpConnection {
             .to_soap()
             .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
         let request = DimeMessage {
-            options: Some(DimeOptions {
-                is_negotiated: true,
-                ..DimeOptions::default()
-            }),
+            options: Some(dime_options.clone()),
             content_type: String::from("text/xml"),
             data: soap,
         };
+        debug!("Replying authentication handshake");
         request.write_to(stream)?;
-        let response = DimeMessage::read_from(stream)?;
-        if let Some(options) = response.options {
-            debug!(
-                "SSAS options: compressed: {}, binary_xml:{}",
-                options.is_response_compressed, options.is_response_xml_binary
-            );
-        } else {
-            debug!("SSAS response contains no DIME options");
-        }
-
+        let response = DimeMessage::read_from(stream)
+            .map_err(|error| XmlaError::AuthenticationError(error.to_string()))?;
+        let options = response
+            .options
+            .ok_or_else(|| XmlaError::ProtocolError("no DIME options in response".into()))?;
+        debug!(
+            "Authentication response options: compressed: {}, binary_xml:{}",
+            options.is_response_compressed, options.is_response_xml_binary
+        );
         let xml = std::str::from_utf8(&response.data)?;
         let document = roxmltree::Document::parse(xml)?;
         let handshake_node = document
@@ -279,7 +291,11 @@ impl SsasTcpConnection {
                 "SspiHandshake should be empty".into(),
             ));
         }
-        Ok(ntlm)
+        debug!(
+            "Authentication complete: {:?}",
+            ntlm.query_context_names()?.username.inner()
+        );
+        Ok((ntlm, options))
     }
 
     fn send_empty_soap_message(stream: &mut TcpStream) -> Result<()> {
@@ -317,5 +333,14 @@ impl SsasTcpConnection {
                 "Unexpected response message".into(),
             ))
         }
+    }
+}
+
+fn decrypt_and_decompress(ntlm: &mut Ntlm, message: &DimeMessage) -> Result<Vec<u8>> {
+    let data = decrypt_ssas_message(ntlm, &message.data)
+        .map_err(|error| XmlaError::ProtocolError(error.to_string()))?;
+    match message.is_compressed() {
+        true => Ok(decompress(&data, message.content_type.as_str())?),
+        false => Ok(data),
     }
 }
