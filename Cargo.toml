@@ -13,6 +13,7 @@ log = "0.4"
 quick-xml = "0.41"
 regex = "1"
 roxmltree = "0.21"
+rust-lzxpress = "0.7.1"
 sspi = "0.21"
 thiserror = "2"
 

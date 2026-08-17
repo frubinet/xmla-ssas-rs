@@ -1684,6 +1684,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust-lzxpress"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e78de2a1e054da285ce9383e8cbc962d4a2d35adfa204fd6710d803a4bc5564"
+
+[[package]]
 name = "rustc_version"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2577,6 +2583,7 @@ dependencies = [
  "quick-xml",
  "regex",
  "roxmltree",
+ "rust-lzxpress",
  "sspi",
  "thiserror",
 ]

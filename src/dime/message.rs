@@ -199,93 +199,9 @@ fn decompress_chunk(data: &[u8], start: usize) -> Result<(Vec<u8>, usize), DimeE
     let compressed_bytes = data
         .get(payload_start..payload_end)
         .ok_or_else(|| DimeError::RecordFormatError("Truncated compressed chunk".to_string()))?;
-    let decompressed_buffer = decompress_buffer(compressed_bytes, original_size)?;
+    let decompressed_buffer = lzxpress::data::decompress(compressed_bytes)
+        .map_err(|error| DimeError::DecompressionError(format!("{:?}", error)))?;
     Ok((decompressed_buffer, payload_end - start))
-}
-
-fn decompress_buffer(input_buffer: &[u8], size: u32) -> Result<Vec<u8>, DimeError> {
-    let output_buffer_size = size as usize;
-    let mut output_buffer = vec![0; output_buffer_size];
-    let mut kind_bit: i8 = 0;
-    let mut have_nibble = false;
-    let mut output_buffer_index: usize = 0;
-    let mut input_buffer_index: usize = 0;
-    let mut kind: u32 = 0;
-    let mut nibble_value: u8 = 0;
-    while output_buffer_index < output_buffer_size {
-        if kind_bit == 0 {
-            let kind_bytes = input_buffer
-                .get(input_buffer_index..input_buffer_index + 4)
-                .ok_or_else(|| DimeError::RecordFormatError("Truncated kind bitmap".into()))?;
-            kind = u32::from_le_bytes(kind_bytes.try_into().unwrap());
-            input_buffer_index += 4;
-            kind_bit = 32;
-        }
-        kind_bit -= 1;
-        if kind & (1u32 << kind_bit) == 0 {
-            output_buffer[output_buffer_index] = *input_buffer
-                .get(input_buffer_index)
-                .ok_or_else(|| DimeError::RecordFormatError("Truncated literal".into()))?;
-            input_buffer_index += 1;
-            output_buffer_index += 1;
-        } else {
-            let length_bytes = input_buffer
-                .get(input_buffer_index..input_buffer_index + 2)
-                .ok_or_else(|| DimeError::RecordFormatError("Truncated length bytes".into()))?;
-            let mut length: u32 = u16::from_le_bytes(length_bytes.try_into().unwrap()) as u32;
-            input_buffer_index += 2;
-            let offset = length >> 3;
-            length &= 7;
-            if length == 7 {
-                if !have_nibble {
-                    have_nibble = true;
-                    nibble_value = *input_buffer.get(input_buffer_index).ok_or_else(|| {
-                        DimeError::RecordFormatError("Truncated match length nibble".into())
-                    })?;
-                    length = nibble_value as u32 & 15;
-                    input_buffer_index += 1;
-                } else {
-                    length = nibble_value as u32 >> 4;
-                    have_nibble = false;
-                }
-                if length == 15 {
-                    length = *input_buffer.get(input_buffer_index).ok_or_else(|| {
-                        DimeError::RecordFormatError("Truncated extended match length".into())
-                    })? as u32;
-                    input_buffer_index += 1;
-                    if length == 255 {
-                        let length_bytes = input_buffer
-                            .get(input_buffer_index..input_buffer_index + 2)
-                            .ok_or_else(|| {
-                                DimeError::RecordFormatError("Truncated length bytes".into())
-                            })?;
-                        length = u16::from_le_bytes(length_bytes.try_into().unwrap()) as u32;
-                        input_buffer_index += 2;
-                        length = length.checked_sub(22).ok_or_else(|| {
-                            DimeError::RecordFormatError("Invalid match length".into())
-                        })?;
-                    }
-                    length += 15;
-                }
-                length += 7;
-            }
-            length += 3;
-            let remaining = output_buffer_size - output_buffer_index;
-            if length as usize > remaining {
-                return Err(DimeError::RecordFormatError("Invalid length".into()));
-            }
-            let distance = offset as usize + 1;
-            if distance > output_buffer_index {
-                return Err(DimeError::RecordFormatError("Invalid offset".into()));
-            }
-            while length != 0 {
-                output_buffer[output_buffer_index] = output_buffer[output_buffer_index - distance];
-                output_buffer_index += 1;
-                length -= 1;
-            }
-        }
-    }
-    Ok(output_buffer)
 }
 
 //TODO: add tests for different sizes, for example: 0, 4095, 4096, and 4097

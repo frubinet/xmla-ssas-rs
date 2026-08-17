@@ -45,4 +45,7 @@ pub enum DimeError {
 
     #[error("{0}")]
     RecordFormatError(String),
+
+    #[error("{0}")]
+    DecompressionError(String),
 }
