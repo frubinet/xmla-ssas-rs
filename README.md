@@ -8,10 +8,17 @@ TCP/DIME. Based on MS-SSAS specification [v20260525](https://sqlprotocoldocs-cgc
 ## Current support
 
 - NTLM authentication and message encryption
+- Compressed responses.
 - XMLA `Discover` requests with restrictions and parsed rowset responses.
+- XMLA `Execute` requests with result parsing to XmlaDataset objects.
+
+## Not supported yet
+- Compressed requests
+- Binary XML
 
 ## Usage
 
+### Discover Catalogs
 ```rust
 use xmla_ssas_rs::connection::{
     NtlmCredentials, SsasTcpConnection, SsasTcpConnectionOptions,
@@ -34,6 +41,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     println!("Catalogs: {:?}", catalog_names);
 
+    Ok(())
+}
+```
+
+### Execute Query
+```rust
+use xmla_ssas_rs::connection::{
+    NtlmCredentials, SsasTcpConnection, SsasTcpConnectionOptions,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let options = SsasTcpConnectionOptions::new("ssas.example.com", 2383);
+    let credentials = NtlmCredentials {
+        domain: "DOMAIN".into(),
+        username: "user".into(),
+        password: "password".into(),
+    };
+    let catalog = "AdvWorks";
+    let mut connection = SsasTcpConnection::connect(options, credentials)?;
+    let dataset = connection.execute(
+        "SELECT {[Measures].[Sales Amount], [Measures].[Reseller Sales Amount]} ON COLUMNS FROM [Adventure Works]",
+        catalog,
+    )?;
+    let column_count = dataset.column_count();
+    assert_eq!(column_count, 2);
+    let row_count = dataset.row_count();
+    assert_eq!(row_count, 1);
+    println!("(0,0): {}", dataset.cell_formatted_value_at(0, 0).unwrap());
+    println!("(1,0): {}", dataset.cell_formatted_value_at(1, 0).unwrap());
     Ok(())
 }
 ```
