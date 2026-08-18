@@ -65,9 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         catalog,
     )?;
     let column_count = dataset.column_count();
-    assert_eq!(column_count, 2);
     let row_count = dataset.row_count();
-    assert_eq!(row_count, 1);
     println!("(0,0): {}", dataset.cell_formatted_value_at(0, 0).unwrap());
     println!("(1,0): {}", dataset.cell_formatted_value_at(1, 0).unwrap());
     Ok(())
