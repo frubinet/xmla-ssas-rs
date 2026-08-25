@@ -10,4 +10,5 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "env"] }
+csv = "1"
 xmla-ssas-rs = { path = "../.." }
