@@ -2570,6 +2570,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "xmla-ssas-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "xmla-ssas-rs",
+]
+
+[[package]]
 name = "xmla-ssas-rs"
 version = "0.1.0"
 dependencies = [
