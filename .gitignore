@@ -29,3 +29,4 @@ debug/
 *~
 *.swp
 *.swo
+/.envrc
