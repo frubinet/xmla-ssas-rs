@@ -299,7 +299,7 @@ impl SsasTcpConnection {
     }
 
     fn send_empty_soap_message(stream: &mut TcpStream) -> Result<()> {
-        // Sends an empty soap message, if in the configured port there's a SAAS Server
+        // Sends an empty soap message, if in the configured port there's an SSAS Server
         // running, it should reply with an error, complaining the soap message
         // was empty. Any other error means something is wrong.
         let soap = br#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">

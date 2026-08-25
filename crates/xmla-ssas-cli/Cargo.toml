@@ -9,5 +9,5 @@ name = "xmla-ssas"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 xmla-ssas-rs = { path = "../.." }
